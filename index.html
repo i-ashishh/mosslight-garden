@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosslight Garden — a tiny pixel world</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: light-dark(#24392f, #e7f3de);
+    --muted: light-dark(#65796a, #aabda9);
+    --paper: light-dark(#f7f7ec, #17231f);
+    --panel: light-dark(#fffef5, #202e28);
+    --line: light-dark(#dce4d2, #3b4e42);
+    --green: #477d52;
+    --green-deep: #2e5a3e;
+    --lime: #d9e9a8;
+    --peach: #f4c5a2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--paper); }
+  body { color: var(--ink); font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif; }
+  #app { min-height: 100vh; width: 100%; background: var(--paper); border-radius: 0; padding: 22px clamp(12px, 3vw, 38px) 24px; }
+  .shell { max-width: 1180px; margin: 0 auto; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+  .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand-mark { width:46px; height:46px; flex:0 0 auto; display:grid; place-items:center; background:#dcebb9; border:3px solid #315e42; box-shadow:4px 4px 0 #9fbd85; font-size:25px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.16em; font-weight:900; color:var(--green); font-size:10px; margin-bottom:3px; }
+  h1 { margin:0; font-size:clamp(22px, 3.5vw, 32px); letter-spacing:-.04em; line-height:1.06; }
+  .subtitle { color:var(--muted); margin:5px 0 0; font-size:13px; }
+  .top-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:8px; }
+  .pill { display:inline-flex; gap:7px; align-items:center; padding:8px 11px; border:1px solid var(--line); background:var(--panel); border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#d49b4b; display:inline-block; box-shadow:0 0 0 3px #d49b4b22; }
+  .layout { display:grid; grid-template-columns:minmax(0, 1fr) 246px; gap:16px; align-items:start; }
+  .game-panel, .side-card { background:var(--panel); border:1px solid var(--line); border-radius:17px; box-shadow:0 5px 0 light-dark(#e3e7d9,#101a15); overflow:hidden; }
+  .game-head { padding:13px 15px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom:1px solid var(--line); }
+  .game-head strong { font-size:13px; }
+  .game-head small { color:var(--muted); font-size:11px; }
+  .weather { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .weather .sun { font-size:19px; }
+  .canvas-wrap { position:relative; background:#8ebc7a; overflow:hidden; }
+  canvas { display:block; width:100%; height:auto; aspect-ratio:640 / 420; image-rendering:pixelated; image-rendering:crisp-edges; cursor:crosshair; outline:none; }
+  .scene-tip { position:absolute; left:12px; bottom:11px; padding:7px 10px; background:#243b2bdf; border:1px solid #d9e8bf55; color:#f5f7e5; font-size:10px; border-radius:8px; pointer-events:none; }
+  .scene-tip b { color:#ddec9f; }
+  .game-footer { padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; border-top:1px solid var(--line); }
+  .quick-actions { display:flex; gap:7px; flex-wrap:wrap; }
+  button { border:1px solid var(--line); border-radius:10px; padding:9px 11px; color:var(--ink); background:light-dark(#f7f8ed,#293a30); font:inherit; font-size:11px; font-weight:800; cursor:pointer; transition:transform .12s, background .12s; }
+  button:hover { transform:translateY(-1px); background:light-dark(#eaf1da,#334a3a); }
+  button:active { transform:translateY(1px); }
+  button.primary { background:#477d52; color:#fffbe9; border-color:#315d3e; }
+  button.primary:hover { background:#376b45; }
+  button:focus-visible, input:focus-visible { outline:3px solid #e5b66f; outline-offset:2px; }
+  .hint { color:var(--muted); font-size:10px; }
+  .side { display:flex; flex-direction:column; gap:12px; }
+  .side-card { padding:15px; }
+  .side-title { font-weight:900; font-size:14px; margin:0 0 4px; letter-spacing:-.02em; }
+  .side-copy { font-size:11px; line-height:1.5; color:var(--muted); margin:0 0 13px; }
+  label { display:block; font-size:10px; font-weight:900; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  input[type=text] { width:100%; border:1px solid var(--line); background:light-dark(#fbfcf3,#17251e); border-radius:9px; padding:10px; color:var(--ink); outline:none; font:inherit; font-size:12px; }
+  .swatches { display:flex; gap:8px; margin:8px 0 13px; }
+  .swatch { width:26px; height:26px; border-radius:6px; border:2px solid transparent; box-shadow:inset 0 0 0 1px #0002; padding:0; }
+  .swatch.selected { outline:2px solid var(--ink); outline-offset:2px; }
+  .online-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px dashed var(--line); font-size:11px; }
+  .online-row:last-child { border-bottom:0; padding-bottom:0; }
+  .count { font-weight:900; font-size:12px; }
+  .visitor-stack { display:flex; gap:0; }
+  .visitor { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; border:2px solid var(--panel); margin-left:-5px; font-size:11px; }
+  .visitor:first-child { margin-left:0; }
+  .interact-list { display:flex; flex-direction:column; gap:7px; }
+  .interact-list button { display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; }
+  .interact-list button span:last-child { color:var(--muted); font-size:10px; }
+  .toast { min-height:36px; display:flex; align-items:center; gap:8px; padding:9px 11px; background:light-dark(#edf3df,#2a3c30); border:1px solid var(--line); border-radius:10px; color:var(--ink); font-size:11px; line-height:1.4; }
+  .controls-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; width:126px; margin:9px auto 0; }
+  .controls-grid button { padding:7px 0; font-size:12px; }
+  .controls-grid button:nth-child(1) { grid-column:2; }
+  .controls-grid button:nth-child(2) { grid-column:1; grid-row:2; }
+  .controls-grid button:nth-child(3) { grid-column:2; grid-row:2; }
+  .controls-grid button:nth-child(4) { grid-column:3; grid-row:2; }
+  .controls-grid button:nth-child(5) { grid-column:2; grid-row:3; }
+  .fineprint { max-width:1180px; margin:14px auto 0; color:var(--muted); font-size:10px; line-height:1.5; display:flex; justify-content:space-between; gap:16px; }
+  .fineprint b { color:var(--ink); }
+  @media (max-width:850px) { .layout { grid-template-columns:1fr; } .side { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .side-card:first-child { grid-row:span 2; } .side-card { padding:13px; } }
+  @media (max-width:560px) { #app { padding:14px 8px 18px; } .topbar { align-items:flex-start; flex-direction:column; } .top-actions { justify-content:flex-start; } .side { grid-template-columns:1fr; } .side-card:first-child { grid-row:auto; } .game-head { align-items:flex-start; } .game-head small { display:block; margin-top:3px; } .scene-tip { font-size:8px; padding:5px 7px; } .fineprint { flex-direction:column; gap:5px; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🌱</div>
+        <div><div class="eyebrow">your tiny corner of calm</div><h1>Mosslight Garden</h1><p class="subtitle">A little pixel backyard to wander, grow things, and do absolutely nothing for a minute.</p></div>
+      </div>
+      <div class="top-actions">
+        <div class="pill"><span class="dot"></span> <span>Playable garden demo</span></div>
+        <div class="pill">🌤️ <span>Sunny · 24°C</span></div>
+      </div>
+    </header>
+    <div class="layout">
+      <section class="game-panel" aria-label="Playable pixel garden">
+        <div class="game-head"><div><strong>THE BACKYARD</strong><br><small>Explore freely · stay inside the garden fence</small></div><div class="weather"><span class="sun">☀️</span><span>Birds are doing bird things</span></div></div>
+        <div class="canvas-wrap">
+          <canvas id="world" width="640" height="420" tabindex="0" aria-label="Pixel garden game. Use WASD or arrow keys to move, E to interact, and click a place to walk there."></canvas>
+          <div class="scene-tip"><b>WASD / ARROWS</b> move &nbsp;·&nbsp; <b>E</b> interact &nbsp;·&nbsp; click to walk</div>
+        </div>
+        <div class="game-footer">
+          <div class="quick-actions"><button class="primary" id="interactBtn">✦ Interact</button><button id="waveBtn">👋 Wave</button><button id="sitBtn">🪑 Take a breather</button></div>
+          <div class="hint" id="coords">Garden coordinates: 320, 145</div>
+        </div>
+      </section>
+      <aside class="side">
+        <section class="side-card">
+          <h2 class="side-title">Make yourself at home</h2>
+          <p class="side-copy">Name your little gardener and pick a look. No complicated character creator, because this is a backyard, not tax software.</p>
+          <label for="playerName">Gardener name</label>
+          <input id="playerName" type="text" maxlength="14" value="Buddy" autocomplete="off">
+          <label style="margin-top:13px">Outfit colour</label>
+          <div class="swatches" id="swatches">
+            <button class="swatch selected" style="background:#e9a36d" data-color="#e9a36d" aria-label="Apricot outfit"></button>
+            <button class="swatch" style="background:#78b9c4" data-color="#78b9c4" aria-label="Sky outfit"></button>
+            <button class="swatch" style="background:#b1c96e" data-color="#b1c96e" aria-label="Leaf outfit"></button>
+            <button class="swatch" style="background:#c49ad8" data-color="#c49ad8" aria-label="Lilac outfit"></button>
+            <button class="swatch" style="background:#e78a9a" data-color="#e78a9a" aria-label="Rose outfit"></button>
+          </div>
+          <button class="primary" id="saveLook" style="width:100%">Save my look</button>
+        </section>
+        <section class="side-card">
+          <h2 class="side-title">Garden visitors</h2>
+          <p class="side-copy">A few friendly sprites are wandering around while you explore.</p>
+          <div class="online-row"><span>In this preview</span><strong class="count">You + 3 sprites</strong></div>
+          <div class="online-row"><span style="color:var(--muted)">World status</span><strong>Local demo</strong></div>
+          <div class="visitor-stack" style="margin-top:12px" aria-label="Demo garden visitors"><span class="visitor" style="background:#efd7aa">🐝</span><span class="visitor" style="background:#c4dba8">🐸</span><span class="visitor" style="background:#d9c4ea">🐈</span><span class="visitor" style="background:#f1c1ad">🐥</span></div>
+        </section>
+        <section class="side-card">
+          <h2 class="side-title">Little things to do</h2>
+          <p class="side-copy">Walk over to a spot or use these buttons to see what it does.</p>
+          <div class="interact-list">
+            <button data-action="truck">🚚 Drive a mini truck <span>press E nearby</span></button>
+            <button data-action="table">🥤 Visit the picnic table <span>sit & snack</span></button>
+            <button data-action="flower">🌼 Admire the flowers <span>slow down</span></button>
+            <button data-action="bike">🚲 Ring the bicycle bell <span>tring tring</span></button>
+          </div>
+        </section>
+        <section class="side-card">
+          <h2 class="side-title">Move around</h2>
+          <p class="side-copy">Keyboard works best on desktop. These buttons work on touch screens too.</p>
+          <div class="controls-grid" aria-label="Movement controls">
+            <button data-move="up" aria-label="Move up">▲</button><button data-move="left" aria-label="Move left">◀</button><button data-move="down" aria-label="Move down">▼</button><button data-move="right" aria-label="Move right">▶</button><button id="mobileInteract" aria-label="Interact">E</button>
+          </div>
+        </section>
+        <div class="toast" id="toast" role="status" aria-live="polite">🍃 Your little garden is ready. Go say hello to the trucks.</div>
+      </aside>
+    </div>
+    <div class="fineprint"><span><b>Mosslight Garden</b> · a tiny pixel-world prototype</span><span>Multiplayer note: visitors are simulated in this preview. Live shared play needs a hosted room/server.</span></div>
+  </div>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('world');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    name: 'Buddy', color: '#e9a36d', x: 320, y: 145, vx: 0, vy: 0,
+    vehicle: null, target: null, facing: 1, wave: 0, sitting: false,
+    keys: new Set(), message: '🍃 Your little garden is ready. Go say hello to the trucks.',
+    time: 0, lastMove: 0, bell: 0
+  };
+  const vehicles = [
+    { x: 472, y: 255, color:'#e8ab62', label:'PEACH', name:'Peachy' },
+    { x: 526, y: 305, color:'#80b9c7', label:'SKY', name:'Bluebell' },
+    { x: 467, y: 351, color:'#a4bd72', label:'LEAF', name:'Pickle' }
+  ];
+  const sprites = [
+    {x:252,y:149,color:'#78b9c4',name:'Pip',emoji:'🐸',phase:0.5},
+    {x:385,y:174,color:'#c49ad8',name:'Miso',emoji:'🐈',phase:2.4},
+    {x:250,y:285,color:'#e78a9a',name:'Bean',emoji:'🐥',phase:4.2}
+  ];
+  const flowers = [{x:225,y:110,c:'#e4a5c5'},{x:237,y:125,c:'#f2cf80'},{x:427,y:111,c:'#b3a1e2'},{x:440,y:126,c:'#f1a1a0'},{x:215,y:277,c:'#f3c7d9'},{x:402,y:275,c:'#f4d77f'},{x:567,y:203,c:'#e4a5c5'},{x:580,y:215,c:'#b3a1e2'}];
+  const keyMap = {ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};
+  function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}
+  function px(x,y,c){rect(x,y,2,2,c);}
+  function line(x1,y1,x2,y2,c,width=1){ctx.strokeStyle=c;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+  function text(t,x,y,size=8,color='#31533a',align='left'){ctx.font=`bold ${size}px ui-monospace, monospace`;ctx.textAlign=align;ctx.fillStyle=color;ctx.fillText(t,x,y);}
+  function poly(points,c){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fill();}
+  function seeded(a,b){const n=Math.sin(a*127.1+b*311.7)*43758.5453;return n-Math.floor(n);}
+  function drawGrass(){
+    rect(0,0,W,H,'#94c47f');
+    for(let y=0;y<H;y+=12){for(let x=0;x<W;x+=12){const v=seeded(x/12,y/12);if(v>.76)rect(x+2,y+3,3,2,'#83b76f');else if(v<.12)rect(x+7,y+7,2,2,'#a8d18d');if(v>.91)px(x+5,y+9,'#6eaa69');}}
+    // faint worn paths crossing the backyard
+    rect(302,91,35,88,'#cdbd91');rect(306,91,27,89,'#e1d3a9');
+    rect(317,247,7,73,'#cdbd91');rect(311,247,23,65,'#e1d3a9');
+    for(let i=0;i<7;i++){rect(306+i%2*8,102+i*10,12,5,i%2?'#c4b487':'#e9dbb4');}
+    // stepping stones from patio towards the gate
+    for(let i=0;i<5;i++){rect(302+(i%2)*11,316+i*12,17,7,'#b9b18e');rect(304+(i%2)*11,317+i*12,11,3,'#d7cfac');}
+    // scattered tiny grass tufts
+    for(let i=0;i<42;i++){let x=30+seeded(i,3)*580,y=30+seeded(i,9)*360;if((x>45&&x<207&&y>103&&y<256)||(x>238&&x<423&&y<98))continue;rect(x,y,2,3,'#6ea565');rect(x+2,y-1,2,2,'#b0d68f');}
+  }
+  function drawFence(){
+    // perimeter fence, gap for the main gate at the bottom
+    for(let x=20;x<620;x+=16){if(x>286&&x<354)continue;rect(x,16,5,12,'#b87f4e');rect(x-2,14,9,4,'#e3b780');rect(x+1,18,2,7,'#8d603f');}
+    for(let y=28;y<396;y+=16){rect(15,y,12,5,'#b87f4e');rect(13,y-2,4,9,'#e3b780');rect(18,y+1,7,2,'#8d603f');rect(613,y,12,5,'#b87f4e');rect(623,y-2,4,9,'#e3b780');rect(615,y+1,7,2,'#8d603f');}
+    for(let x=20;x<620;x+=16){if(x>286&&x<354)continue;rect(x,397,5,10,'#b87f4e');rect(x-2,395,9,4,'#e3b780');}
+    // gateposts and open gate wings
+    rect(279,386,10,21,'#966440');rect(351,386,10,21,'#966440');rect(276,383,15,6,'#e4b47b');rect(349,383,15,6,'#e4b47b');
+    for(let i=0;i<4;i++){rect(288+i*3,389-i*2,2,12,'#bb8957');rect(351+i*3,389-i*2,2,12,'#bb8957');}
+    text('GARDEN GATE',320,414,7,'#315a3b','center');
+  }
+  function drawHome(){
+    // shadow and little porch
+    rect(239,67,186,38,'#6b9661');rect(249,68,166,31,'#c9b18a');rect(254,72,156,24,'#e0cda7');
+    // house body
+    rect(247,38,169,58,'#e9d6ac');rect(247,38,169,8,'#d6bd91');
+    for(let x=253;x<413;x+=18){rect(x,48,2,44,'#ddc69b');}
+    // roof layers
+    poly([[234,47],[329,8],[430,47],[417,54],[329,24],[247,55]],'#754a39');
+    poly([[242,44],[329,10],[421,44],[414,49],[329,18],[250,49]],'#b95f50');
+    for(let x=260;x<402;x+=17){line(x,39-(Math.abs(x-329)*.35),x+7,44-(Math.abs(x-329)*.3),'#d47a61',2);}
+    rect(257,54,33,24,'#9ed0d2');rect(261,58,25,16,'#b9e4dc');rect(272,56,3,21,'#f4e7bb');rect(259,65,30,3,'#f4e7bb');
+    rect(371,54,31,24,'#9ed0d2');rect(375,58,23,16,'#b9e4dc');rect(385,56,3,21,'#f4e7bb');rect(373,65,28,3,'#f4e7bb');
+    // front door and welcome sign
+    rect(310,61,35,35,'#a96a43');rect(314,65,27,31,'#c58a56');rect(319,70,17,26,'#7c5036');rect(332,81,3,3,'#f3d17d');
+    rect(348,66,31,15,'#fff1c9');rect(351,69,25,9,'#d9e8af');text('HOME',364,76,6,'#4c7048','center');
+    // chimney
+    rect(378,14,13,23,'#9f5a47');rect(376,12,17,4,'#d88b6d');rect(380,21,3,3,'#d77f64');
+  }
+  function drawBed(x,y,w,h,label){
+    rect(x-3,y-3,w+6,h+6,'#a77a51');rect(x,y,w,h,'#73553a');rect(x+3,y+3,w-6,h-6,'#906743');
+    for(let yy=y+8;yy<y+h-5;yy+=15){rect(x+5,yy,w-10,2,'#b88b5a');}
+    if(label)text(label,x+w/2,y-7,7,'#fff6d4','center');
+  }
+  function drawTree(x,y,fruit){
+    rect(x-3,y+7,7,14,'#825538');rect(x-6,y+9,13,3,'#6d8748');
+    rect(x-17,y-8,34,22,'#408553');rect(x-13,y-15,26,22,'#4d9a5d');rect(x-7,y-20,16,12,'#61a967');
+    rect(x-13,y-6,10,8,'#58a563');rect(x+3,y-11,11,10,'#62ad6a');
+    if(fruit){[[x-8,y-7],[x+6,y-2],[x+1,y-13]].forEach(([fx,fy],i)=>{rect(fx,fy,5,5,i===1?'#f0cc72':'#d96350');px(fx+2,fy-2,'#526f3b');});}
+    rect(x-19,y+14,38,3,'#2e6945');
+  }
+  function drawGardenBeds(){
+    // fruit grove and labeled growing zone
+    drawBed(43,108,161,77,'FRUIT GROVE');drawTree(79,139,true);drawTree(145,137,true);
+    rect(92,161,43,15,'#e6d7a9');text('PICK ME',113,171,6,'#6a5837','center');
+    // vegetable rows
+    drawBed(51,201,151,57,'VEGGIES');
+    for(let row=0;row<3;row++)for(let col=0;col<7;col++){
+      const x=61+col*19,y=211+row*14;
+      if(col%3===0){rect(x,y+3,8,5,'#4d8b4c');rect(x+2,y,4,7,'#75b85e');rect(x+3,y+2,3,4,'#d66a50');}
+      else if(col%3===1){rect(x,y+2,9,6,'#398252');rect(x+2,y,5,9,'#6da957');rect(x+3,y+2,3,4,'#a5c96e');}
+      else {rect(x,y+1,8,7,'#4f974c');rect(x+1,y,6,6,'#76b864');rect(x+3,y+5,3,3,'#e4a45f');}
+    }
+    // little labels on stake signs
+    rect(44,175,27,14,'#e2c88f');rect(47,178,21,8,'#f6e7bd');text('FRUIT',57,184,5,'#73583b','center');
+    rect(166,248,27,12,'#e2c88f');text('VEG',179,256,6,'#73583b','center');
+  }
+  function drawPot(x,y,c){
+    rect(x-6,y+3,13,8,'#b8684d');rect(x-8,y+1,17,4,'#d98762');rect(x-3,y-2,3,5,'#477d52');rect(x+1,y-5,3,7,'#5d9b55');rect(x+4,y-1,3,4,'#6bad5d');
+    rect(x-1,y-8,4,4,c);rect(x-5,y-5,4,4,c);rect(x+3,y-5,4,4,c);rect(x-1,y-2,4,3,'#eacb7b');
+  }
+  function drawBinAndBike(){
+    // dustbin by the home wall
+    rect(438,83,16,23,'#6f8c88');rect(435,81,22,5,'#96b2a7');rect(440,88,12,3,'#4d706b');rect(443,93,3,10,'#9db8ad');
+    // bicycle leaning at the wall
+    ctx.strokeStyle='#315e62';ctx.lineWidth=2;ctx.beginPath();ctx.arc(490,102,9,0,Math.PI*2);ctx.arc(516,102,9,0,Math.PI*2);ctx.stroke();
+    line(490,102,500,90,'#d7e6d0',2);line(500,90,507,102,'#d7e6d0',2);line(507,102,490,102,'#d7e6d0',2);line(500,90,511,89,'#d7e6d0',2);line(507,102,514,91,'#d7e6d0',2);line(497,89,503,89,'#315e62',2);
+    rect(497,86,7,2,'#315e62');rect(510,87,7,2,'#315e62');
+    text('BELL!',505,119,6,'#315e62','center');
+  }
+  function drawTable(){
+    // round patio and little round table, intentionally central
+    ctx.fillStyle='#d4cba8';ctx.beginPath();ctx.ellipse(324,217,76,57,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#b8ad88';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(324,217,70,51,0,0,Math.PI*2);ctx.stroke();
+    // chairs / stools
+    [[277,202],[370,202],[284,243],[363,243]].forEach(([x,y],i)=>{rect(x-7,y-6,15,13,i%2?'#a66b48':'#bf8b58');rect(x-5,y-4,11,8,'#dfb47b');rect(x-4,y+5,2,3,'#7b593f');rect(x+4,y+5,2,3,'#7b593f');});
+    // circular table top
+    ctx.fillStyle='#8f6544';ctx.beginPath();ctx.ellipse(324,216,32,25,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#c79663';ctx.beginPath();ctx.ellipse(324,211,32,25,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#e3bd83';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(324,211,27,20,0,0,Math.PI*2);ctx.stroke();
+    rect(315,221,17,10,'#88603f');
+    // picnic plate, sandwich, fruit bowl and cold drink
+    ctx.fillStyle='#f5e8c9';ctx.beginPath();ctx.ellipse(315,208,8,5,0,0,Math.PI*2);ctx.fill();rect(311,205,8,4,'#d4a45d');rect(312,206,7,2,'#75a45c');
+    ctx.fillStyle='#e8f0df';ctx.beginPath();ctx.ellipse(335,215,7,5,0,0,Math.PI*2);ctx.fill();rect(331,212,7,4,'#de6550');rect(334,210,3,2,'#5e984e');
+    rect(327,198,8,12,'#7ac7d0');rect(329,196,4,3,'#d8f4e9');rect(329,201,4,7,'#b5e5e3');rect(328,194,5,2,'#f4efc9');
+    rect(302,216,7,5,'#e7a15b');rect(304,214,3,3,'#f4d27c');
+    text('PICNIC SPOT',324,269,7,'#486d49','center');
+  }
+  function drawTrucks(){
+    // small cobbled vehicle parking pad
+    rect(425,235,163,137,'#c7be9c');rect(430,241,153,125,'#d9d0ae');
+    for(let y=243;y<365;y+=15)for(let x=432+(y%2?0:10);x<581;x+=22){rect(x,y,17,2,'#beb28d');}
+    text('LITTLE TRUCKS',506,231,8,'#466b49','center');
+    vehicles.forEach((v,i)=>{
+      const x=v.x,y=v.y;
+      rect(x-22,y-12,44,27,'#66816a');rect(x-21,y-11,42,25,v.color);
+      rect(x-16,y-17,23,11,v.color);rect(x-13,y-15,16,7,'#bce2dc');rect(x+7,y-8,11,13,v.color);
+      // hood, bumper, wheels
+      rect(x+11,y-5,9,8,i===0?'#d08c4d':i===1?'#5894a1':'#77934f');rect(x+19,y-3,4,5,'#eee0b2');
+      rect(x-16,y-15,7,3,'#f0e5b7');rect(x-17,y+9,10,8,'#3c453a');rect(x+7,y+9,10,8,'#3c453a');
+      rect(x-14,y+10,6,4,'#8a9480');rect(x+9,y+10,6,4,'#8a9480');
+      rect(x-5,y-7,13,11,'#c9e8df');rect(x-3,y-5,9,7,'#e2f4e8');
+      rect(x-20,y+7,40,3,i===0?'#d58e50':i===1?'#609ca6':'#86a254');
+      text(v.label,x-1,y+4,5,'#334a3a','center');
+      if(state.vehicle===v){rect(x-25,y-21,50,42,'#fff0a2');rect(x-23,y-19,46,38,v.color);rect(x-16,y-15,23,11,'#bce2dc');rect(x+7,y-8,11,13,v.color);rect(x+11,y-5,9,8,i===0?'#d08c4d':i===1?'#5894a1':'#77934f');rect(x+19,y-3,4,5,'#eee0b2');rect(x-16,y+9,10,8,'#3c453a');rect(x+7,y+9,10,8,'#3c453a');rect(x-5,y-7,13,11,'#c9e8df');rect(x-3,y-5,9,7,'#e2f4e8');rect(x-25,y-21,50,2,'#fff0a2');rect(x-25,y+19,50,2,'#fff0a2');rect(x-25,y-21,2,42,'#fff0a2');rect(x+23,y-21,2,42,'#fff0a2');text('YOU',x,y-24,7,'#fff9d6','center');}
+    });
+  }
+  function drawFlowers(){
+    flowers.forEach(f=>drawPot(f.x,f.y,f.c));
+    // herb row close to the kitchen door
+    for(let i=0;i<5;i++){rect(359+i*12,103,8,8,'#a66d4e');rect(360+i*12,100,6,5,'#4b8d54');rect(362+i*12,97,3,6,'#79b863');}
+  }
+  function drawPathDecor(){
+    // watering can beside the vegetable patch
+    rect(211,246,13,11,'#78a9bd');rect(213,243,8,4,'#92c4d0');rect(221,248,7,3,'#78a9bd');rect(213,255,9,3,'#477c8c');
+    // bench near the bottom side
+    rect(218,321,45,7,'#a96c43');rect(220,317,41,5,'#cf9560');rect(224,328,3,8,'#79543b');rect(254,328,3,8,'#79543b');
+    // stepping stones in a little curve
+    [[270,298],[287,310],[281,330],[300,342],[279,354]].forEach(([x,y])=>{rect(x,y,12,6,'#bfb58f');rect(x+2,y+1,7,2,'#e3d9b6');});
+    // mailbox by the gate
+    rect(376,369,4,24,'#886243');rect(366,366,24,15,'#c86f53');rect(369,369,18,9,'#f4d8ae');rect(375,371,5,3,'#a45d46');
+  }
+  function drawWorldBase(){drawGrass();drawFence();drawHome();drawGardenBeds();drawFlowers();drawBinAndBike();drawTable();drawTrucks();drawPathDecor();}
+  function drawAvatar(p, isPlayer=false){
+    const x=Math.round(p.x),y=Math.round(p.y);
+    if(isPlayer && state.sitting){
+      rect(x-7,y-2,14,7,'#75513e');rect(x-7,y-5,14,7,p.color);rect(x-5,y-12,10,10,'#eac39b');rect(x-5,y-14,10,5,'#62442f');rect(x+4,y-2,3,5,'#eac39b');
+    } else {
+      // soft pixel shadow
+      rect(x-6,y+7,13,4,'#446d4666');
+      // tiny legs and boots
+      rect(x-5,y+3,4,6,'#5e5148');rect(x+2,y+3,4,6,'#5e5148');rect(x-6,y+7,5,3,'#493c34');rect(x+2,y+7,5,3,'#493c34');
+      // body / shirt
+      rect(x-7,y-7,14,12,p.color);rect(x-9,y-4,3,7,p.color);rect(x+6,y-4,3,7,p.color);
+      rect(x-6,y-5,12,2,'#ffffff55');
+      // head and hair
+      rect(x-6,y-17,12,11,'#edc59e');rect(x-7,y-19,14,6,'#704b35');rect(x-6,y-20,11,3,'#8b5a3a');
+      rect(x-4,y-13,2,2,'#4b443a');rect(x+3,y-13,2,2,'#4b443a');rect(x-1,y-9,3,1,'#b86f62');
+      if(isPlayer){rect(x-8,y-23,16,3,'#315e42');rect(x-4,y-25,8,3,'#ddec9f');text(state.name||'Gardener',x,y-29,7,'#fffbe8','center');}
+    }
+    if(isPlayer && state.wave>0){rect(x+7,y-14,4,7,'#edc59e');rect(x+9,y-18,3,6,'#edc59e');rect(x+7,y-19,3,3,'#edc59e');}
+    if(!isPlayer){text(p.name,x,y-27,7,'#fffbe8','center');rect(x-13,y-24,26,2,'#355f41');}
+  }
+  function drawEffects(){
+    // drifting leaf flecks
+    for(let i=0;i<7;i++){let x=(i*97+state.time*0.16)%620+10,y=(i*59+Math.sin(state.time*.02+i)*9)%385+15;rect(x,y,3,2,i%2?'#c9e391':'#e5ce87');}
+    if(state.bell>0){text('tring tring!',505,77,9,'#fff5c8','center');}
+  }
+  function draw(){
+    drawWorldBase();
+    // flower sparkle flecks
+    flowers.forEach((f,i)=>{if(Math.floor(state.time/32)%4===i%4)px(f.x+10,f.y-9,'#fff1b2');});
+    // render locals in depth order, then controlled avatar
+    sprites.forEach(s=>drawAvatar(s,false));
+    if(!state.vehicle)drawAvatar({x:state.x,y:state.y,color:state.color},true);
+    drawEffects();
+    $('coords').textContent=`Garden coordinates: ${Math.round(state.x)}, ${Math.round(state.y)}${state.vehicle?' · Driving '+state.vehicle.name:''}`;
+  }
+  function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+  function blocked(x,y){
+    // keep feet safely within the fenced yard
+    if(x<32||x>608||y<35||y>380)return true;
+    // house and porch walls
+    if(x>243&&x<420&&y>34&&y<97)return true;
+    // crop plots remain plant-only, because we are not stomping somebody's vegetables
+    if(x>41&&x<207&&y>104&&y<188)return true;
+    if(x>49&&x<205&&y>197&&y<261)return true;
+    // table top and chairs
+    if(Math.hypot(x-324,y-216)<28)return true;
+    if(x>270&&x<291&&y>194&&y<221)return true;
+    if(x>357&&x<378&&y>194&&y<221)return true;
+    // parked cars are solid when unoccupied
+    for(const v of vehicles){if(v!==state.vehicle && Math.abs(x-v.x)<23&&Math.abs(y-v.y)<17)return true;}
+    // the bicycle is a proper obstacle, not a portal to another dimension
+    if(x>481&&x<525&&y>89&&y<113)return true;
+    return false;
+  }
+  function setMessage(msg){state.message=msg;$('toast').textContent=msg;}
+  function nearestVehicle(){let best=null,d=1e9;for(const v of vehicles){const dd=distance(state,v);if(dd<d){d=dd;best=v;}}return {v:best,d};}
+  function approach(x,y){state.sitting=false;state.target={x,y};}
+  function interact(){
+    if(state.vehicle){const v=state.vehicle;state.vehicle=null;state.x=Math.max(35,Math.min(605,v.x-30));state.y=Math.max(35,Math.min(379,v.y+22));state.target=null;setMessage(`🛻 You hopped out of ${v.name}. Parked neatly. Your insurance company has no notes.`);return;}
+    const {v,d}=nearestVehicle();
+    if(d<37){state.vehicle=v;state.x=v.x;state.y=v.y;state.target=null;state.sitting=false;setMessage(`🚚 You're driving ${v.name}! Use WASD or the arrow keys to cruise around the yard. Press E to hop out.`);return;}
+    if(distance(state,{x:324,y:216})<58){state.sitting=true;state.target=null;setMessage('🥤 You settled at the picnic table. Sandwich, cold drink, absolutely no urgent emails.');return;}
+    if(distance(state,{x:505,y:102})<54){state.bell=90;setMessage('🚲 Tring tring! The bicycle bell has announced your extremely important arrival.');return;}
+    const f=flowers.reduce((a,b)=>distance(state,a)<distance(state,b)?a:b);if(distance(state,f)<43){setMessage('🌼 Tiny flowers. Big main-character energy. You take a quiet moment to admire them.');return;}
+    if(state.x>430&&state.y<125){setMessage('🗑️ The dustbin is right where it should be. An unsung hero of every garden.');return;}
+    if(state.x<216&&state.y<265){setMessage('🌱 Fruit and vegetables are growing here. Please do not become the villain who steps on the seedlings.');return;}
+    setMessage('🍃 Wander closer to the table, flowers, bicycle, or one of the mini trucks, then press E to interact.');
+  }
+  function tick(){
+    state.time++;
+    let dx=0,dy=0;
+    if(state.keys.has('up'))dy--;if(state.keys.has('down'))dy++;if(state.keys.has('left'))dx--;if(state.keys.has('right'))dx++;
+    if(state.target && !dx&&!dy){const tx=state.target.x-state.x,ty=state.target.y-state.y,d=Math.hypot(tx,ty);if(d<3){state.target=null;}else{dx=tx/d;dy=ty/d;}}
+    const speed=state.vehicle?2.1:1.25;
+    if(dx||dy){const d=Math.hypot(dx,dy);dx=dx/d;dy=dy/d;let nx=state.x+dx*speed,ny=state.y+dy*speed;
+      if(state.vehicle){ // the trucks use slightly wider collision clearance
+        if(!blocked(nx, state.y))state.x=nx;
+        if(!blocked(state.x, ny))state.y=ny;
+        state.vehicle.x=state.x;state.vehicle.y=state.y;
+      } else {
+        if(!blocked(nx,state.y))state.x=nx;
+        if(!blocked(state.x,ny))state.y=ny;
+      }
+      state.sitting=false;state.facing=dx<0?-1:dx>0?1:state.facing;state.lastMove=state.time;
+    }
+    sprites.forEach((s,i)=>{
+      const angle=state.time*.012+s.phase;
+      const tx=[255,376,247][i]+Math.sin(angle)*20,ty=[155,176,282][i]+Math.cos(angle*1.15)*12;
+      let vx=tx-s.x,vy=ty-s.y,dist=Math.hypot(vx,vy);if(dist>2){let nx=s.x+vx/dist*.24,ny=s.y+vy/dist*.24;if(!blocked(nx,ny)){s.x=nx;s.y=ny;}}
+    });
+    if(state.wave>0)state.wave--;if(state.bell>0)state.bell--;
+    draw();requestAnimationFrame(tick);
+  }
+  window.addEventListener('keydown',e=>{
+    const dir=keyMap[e.key];if(dir){e.preventDefault();state.keys.add(dir);state.target=null;}
+    if(e.key==='e'||e.key==='E'){e.preventDefault();interact();}
+    if(e.key===' '){e.preventDefault();state.wave=24;setMessage('👋 You wave at the garden. One simulated sprite waves back, because manners are still free.');}
+    if(e.key==='Escape'){state.target=null;state.keys.clear();}
+  });
+  window.addEventListener('keyup',e=>{const dir=keyMap[e.key];if(dir)state.keys.delete(dir);});
+  window.addEventListener('blur',()=>state.keys.clear());
+  canvas.addEventListener('pointerdown',e=>{
+    const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;
+    const clickedTruck=vehicles.find(v=>Math.abs(x-v.x)<24&&Math.abs(y-v.y)<21);
+    if(clickedTruck&&distance(state,clickedTruck)<42){state.vehicle=clickedTruck;state.x=clickedTruck.x;state.y=clickedTruck.y;state.target=null;setMessage(`🚚 You're in ${clickedTruck.name}! Drive with the arrow keys or WASD, and press E to exit.`);return;}
+    state.target={x:Math.max(34,Math.min(607,x)),y:Math.max(36,Math.min(379,y))};state.sitting=false;
+  });
+  $('interactBtn').addEventListener('click',interact);$('mobileInteract').addEventListener('click',interact);
+  $('waveBtn').addEventListener('click',()=>{state.wave=35;setMessage('👋 A cheerful wave crosses the garden. Pip seems impressed.');});
+  $('sitBtn').addEventListener('click',()=>{approach(324,249);setMessage('🪑 Heading toward the picnic area. Press E when you are close to sit and snack.');});
+  document.querySelectorAll('[data-move]').forEach(btn=>{
+    const dir=btn.dataset.move;const start=e=>{e.preventDefault();state.keys.add(dir);state.target=null;};const stop=e=>{e.preventDefault();state.keys.delete(dir);};
+    btn.addEventListener('pointerdown',start);btn.addEventListener('pointerup',stop);btn.addEventListener('pointerleave',stop);btn.addEventListener('pointercancel',stop);
+  });
+  document.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',()=>{
+    const what=btn.dataset.action;
+    if(what==='truck'){const {v,d}=nearestVehicle();if(d<37)interact();else{approach(v.x-28,v.y+18);setMessage(`🚚 Walking over to ${v.name}. Press E when you're next to it.`);}}
+    if(what==='table'){if(distance(state,{x:324,y:216})<58)interact();else{approach(350,247);setMessage('🥤 Heading to the picnic table. Press E when you reach the seats.');}}
+    if(what==='flower'){const f=flowers.reduce((a,b)=>distance(state,a)<distance(state,b)?a:b);approach(f.x+13,f.y+15);setMessage('🌼 Going to check on the flowers. Press E once you arrive.');}
+    if(what==='bike'){if(distance(state,{x:505,y:102})<54)interact();else{approach(530,127);setMessage('🚲 Walking over to the bicycle. Press E nearby to ring the bell.');}}
+  }));
+  $('saveLook').addEventListener('click',()=>{const value=$('playerName').value.trim();state.name=value||'Gardener';state.color=state.color||'#e9a36d';setMessage(`🌿 Looking good, ${state.name}. Your gardener details are set for this preview.`);});
+  $('playerName').addEventListener('input',e=>{const n=e.target.value.trim();if(n)state.name=n.slice(0,14);});
+  document.querySelectorAll('.swatch').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.swatch').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');state.color=btn.dataset.color;}));
+  // Motion pass: smoother movement, collision-aware pathing, and sprite animation.
+  state.path = [];
+  state.driveSpeed = 0;
+  state.sitAngle = Math.PI / 2;
+
+  function blocked(x, y, movingTruck) {
+    if (x < 31 || x > 609 || y < 34 || y > 381) return true;
+    if (x > 237 && x < 426 && y > 31 && y < 101) return true;
+    if (x > 38 && x < 210 && y > 101 && y < 191) return true;
+    if (x > 45 && x < 210 && y > 194 && y < 264) return true;
+    if (Math.hypot((x - 324) * 0.96, y - 216) < 29) return true;
+    if (x > 480 && x < 526 && y > 87 && y < 115) return true;
+    for (const v of vehicles) {
+      if (v !== movingTruck && Math.abs(x - v.x) < 22 && Math.abs(y - v.y) < 17) return true;
+    }
+    return false;
+  }
+
+  function canWalk(x, y, actor) {
+    if (blocked(x, y, null)) return false;
+    for (const s of sprites) {
+      if (s !== actor && Math.hypot(x - s.x, y - s.y) < 13) return false;
+    }
+    if (actor !== 'player' && !state.vehicle && Math.hypot(x - state.x, y - state.y) < 14) return false;
+    return true;
+  }
+
+  function findPath(sx, sy, tx, ty) {
+    const unit = 8;
+    const cols = Math.floor(W / unit);
+    const rows = Math.floor(H / unit);
+    const total = cols * rows;
+    const idOf = (c, r) => r * cols + c;
+    const center = (id) => ({ x: (id % cols) * unit + unit / 2, y: Math.floor(id / cols) * unit + unit / 2 });
+    const cellOf = (x, y) => ({ c: Math.max(0, Math.min(cols - 1, Math.floor(x / unit))), r: Math.max(0, Math.min(rows - 1, Math.floor(y / unit))) });
+    const isBlockedCell = (c, r) => {
+      if (c < 0 || r < 0 || c >= cols || r >= rows) return true;
+      const p = center(idOf(c, r));
+      return blocked(p.x, p.y, null);
+    };
+    function nearestOpen(c, r) {
+      if (!isBlockedCell(c, r)) return { c: c, r: r };
+      for (let radius = 1; radius <= 8; radius++) {
+        for (let yy = r - radius; yy <= r + radius; yy++) {
+          for (let xx = c - radius; xx <= c + radius; xx++) {
+            if (Math.max(Math.abs(xx - c), Math.abs(yy - r)) !== radius) continue;
+            if (!isBlockedCell(xx, yy)) return { c: xx, r: yy };
+          }
+        }
+      }
+      return null;
+    }
+    const s0 = cellOf(sx, sy);
+    const g0 = cellOf(tx, ty);
+    const start = nearestOpen(s0.c, s0.r);
+    const goal = nearestOpen(g0.c, g0.r);
+    if (!start || !goal) return [];
+    const startId = idOf(start.c, start.r);
+    const goalId = idOf(goal.c, goal.r);
+    const gScore = new Float64Array(total);
+    gScore.fill(Infinity);
+    const parent = new Int32Array(total);
+    parent.fill(-1);
+    const closed = new Uint8Array(total);
+    const heap = [];
+    const heuristic = (id) => {
+      const p = center(id);
+      const q = center(goalId);
+      return Math.hypot(p.x - q.x, p.y - q.y) / unit;
+    };
+    function push(node) {
+      heap.push(node);
+      let i = heap.length - 1;
+      while (i > 0) {
+        const p = Math.floor((i - 1) / 2);
+        if (heap[p].f <= heap[i].f) break;
+        const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p;
+      }
+    }
+    function pop() {
+      const first = heap[0];
+      const last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        let i = 0;
+        while (true) {
+          const l = i * 2 + 1, r = l + 1;
+          let small = i;
+          if (l < heap.length && heap[l].f < heap[small].f) small = l;
+          if (r < heap.length && heap[r].f < heap[small].f) small = r;
+          if (small === i) break;
+          const t = heap[small]; heap[small] = heap[i]; heap[i] = t; i = small;
+        }
+      }
+      return first;
+    }
+    gScore[startId] = 0;
+    push({ id: startId, f: heuristic(startId) });
+    const dirs = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[-1,1,1.414],[1,-1,1.414],[-1,-1,1.414]];
+    let found = false, iterations = 0;
+    while (heap.length && iterations++ < 14000) {
+      const current = pop();
+      const cur = current.id;
+      if (closed[cur]) continue;
+      if (cur === goalId) { found = true; break; }
+      closed[cur] = 1;
+      const c = cur % cols, r = Math.floor(cur / cols);
+      for (const d of dirs) {
+        const nc = c + d[0], nr = r + d[1];
+        if (isBlockedCell(nc, nr)) continue;
+        if (d[0] && d[1] && (isBlockedCell(c + d[0], r) || isBlockedCell(c, r + d[1]))) continue;
+        const next = idOf(nc, nr);
+        if (closed[next]) continue;
+        const tentative = gScore[cur] + d[2];
+        if (tentative < gScore[next]) {
+          gScore[next] = tentative;
+          parent[next] = cur;
+          push({ id: next, f: tentative + heuristic(next) });
+        }
+      }
+    }
+    if (!found) return [];
+    const ids = [];
+    for (let at = goalId; at !== -1; at = parent[at]) {
+      ids.push(at);
+      if (at === startId) break;
+    }
+    ids.reverse();
+    const result = ids.slice(1).map(center);
+    return result;
+  }
+
+  function setTarget(x, y) {
+    state.sitting = false;
+    state.path = findPath(state.x, state.y, Math.max(33, Math.min(607, x)), Math.max(36, Math.min(379, y)));
+    state.target = state.path.length ? state.path[state.path.length - 1] : null;
+  }
+
+  function approach(x, y) {
+    setTarget(x, y);
+  }
+
+  function drawTable() {
+    ctx.fillStyle = '#d4cba8';
+    ctx.beginPath(); ctx.ellipse(324, 217, 79, 59, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b6ad8d'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(324, 217, 73, 53, 0, 0, Math.PI * 2); ctx.stroke();
+    // A continuous curved bench means the whole circle is a valid seat.
+    ctx.strokeStyle = '#8f6748'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.ellipse(324, 216, 50, 38, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#c89d6a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.ellipse(324, 214, 49, 37, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#e0b981'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(324, 211, 43, 31, 0, 0, Math.PI * 2); ctx.stroke();
+    // Table pedestal and shaded tabletop.
+    rect(316, 217, 16, 13, '#80583c');
+    ctx.fillStyle = '#765039'; ctx.beginPath(); ctx.ellipse(324, 216, 34, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a8754d'; ctx.beginPath(); ctx.ellipse(324, 211, 34, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c89560'; ctx.beginPath(); ctx.ellipse(324, 207, 29, 21, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#e4bd86'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(324, 207, 27, 19, 0, 0, Math.PI * 2); ctx.stroke();
+    // Small spread of picnic food, drawn as pixel props rather than interface icons.
+    ctx.fillStyle = '#f4e8cb'; ctx.beginPath(); ctx.ellipse(312, 207, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+    rect(307, 204, 10, 4, '#d7a45f'); rect(309, 205, 7, 2, '#6fa25b');
+    ctx.fillStyle = '#f4e8cb'; ctx.beginPath(); ctx.ellipse(335, 211, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+    rect(332, 208, 6, 4, '#dd7254'); rect(334, 207, 3, 2, '#6b984b');
+    rect(324, 196, 8, 12, '#6fb8c4'); rect(326, 194, 4, 3, '#f5eaca'); rect(326, 200, 4, 6, '#b9e7df');
+    rect(300, 215, 7, 5, '#e5a15b'); rect(302, 213, 3, 3, '#f4d27c');
+    text('PICNIC SPOT', 324, 273, 7, '#486d49', 'center');
+  }
+
+  function drawTrucks() {
+    vehicles.forEach((v, i) => {
+      if (typeof v.heading !== 'number') v.heading = 0;
+      const moving = state.vehicle === v && Math.abs(state.driveSpeed) > 0.12;
+      // Soft ground shadow sits below the truck, not inside its sprite.
+      ctx.fillStyle = '#395b3d40';
+      ctx.beginPath(); ctx.ellipse(v.x + 2, v.y + 5, 24, 15, 0, 0, Math.PI * 2); ctx.fill();
+      if (state.vehicle === v) {
+        ctx.strokeStyle = '#f3e5a2'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(v.x, v.y, 27, 19, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.save();
+      ctx.translate(v.x, v.y);
+      ctx.rotate(v.heading);
+      const wheelShift = moving ? Math.sin(state.time * 0.8) * 1.3 : 0;
+      // Four rubber wheels and metal hubs.
+      [[-12,-10],[10,-10],[-12,10],[10,10]].forEach(([wx,wy]) => {
+        rect(wx - 4, wy - 3, 9, 7, '#344139');
+        rect(wx - 2, wy - 2, 5, 5, '#66756a');
+        rect(wx - 1 + wheelShift, wy - 1, 2, 3, '#c4ccb1');
+      });
+      // Shadowed chassis, cargo bed, cab, glazing and bumpers.
+      rect(-19, -9, 31, 18, '#53634c');
+      rect(-18, -8, 28, 16, v.color);
+      rect(-16, -6, 23, 12, i === 0 ? '#efbc76' : i === 1 ? '#9acdd2' : '#c3d28a');
+      rect(-15, -5, 21, 2, '#ffffff55');
+      rect(-15, 4, 22, 2, i === 0 ? '#bf7d4b' : i === 1 ? '#5f9daa' : '#7f9c54');
+      rect(6, -9, 13, 18, '#566b5b');
+      rect(7, -8, 11, 16, v.color);
+      rect(9, -6, 8, 12, '#77aeb7');
+      rect(10, -5, 6, 4, '#d6f0e7');
+      rect(10, 1, 6, 4, '#9bcfd0');
+      rect(7, -1, 10, 2, '#e8e0bf');
+      rect(18, -7, 4, 14, '#d9d5b6');
+      rect(20, -5, 3, 4, '#fff0b2'); rect(20, 2, 3, 4, '#d76552');
+      rect(21, -10, 3, 20, '#6d7968');
+      rect(-20, -8, 3, 5, '#dd7860'); rect(-20, 3, 3, 5, '#dd7860');
+      rect(-5, -2, 9, 4, '#ffffff65');
+      text(v.label, -4, 2, 5, '#344b3b', 'center');
+      ctx.restore();
+      if (state.vehicle === v) {
+        text('YOU DRIVING', v.x, v.y - 23, 7, '#fff8d9', 'center');
+      }
+      if (moving && Math.floor(state.time / 5) % 4 === 0) {
+        const puffX = v.x - Math.cos(v.heading) * 22;
+        const puffY = v.y - Math.sin(v.heading) * 22;
+        rect(puffX, puffY, 3, 3, '#f0e7c477');
+      }
+    });
+  }
+
+  function drawAvatar(p, isPlayer) {
+    const x = Math.round(p.x), y = Math.round(p.y);
+    const moving = isPlayer
+      ? (!state.sitting && Math.hypot(state.vx, state.vy) > 0.16)
+      : !!p.moving;
+    const frame = moving ? (Math.floor(state.time / 6) % 2) : 0;
+    const legSwing = moving ? (frame ? 2 : -2) : 0;
+    const shirt = p.color || '#78b9c4';
+    // Tiny offset shadow keeps feet visually planted on the lawn.
+    ctx.fillStyle = '#31573c55';
+    ctx.beginPath(); ctx.ellipse(x, y + 8, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (isPlayer && state.sitting) {
+      // Seated pose: body leans toward the table and feet tuck under the bench.
+      rect(x - 6, y + 1, 5, 5, '#594638'); rect(x + 1, y + 1, 5, 5, '#594638');
+      rect(x - 8, y - 8, 16, 12, '#604936');
+      rect(x - 7, y - 9, 14, 11, shirt);
+      rect(x - 6, y - 7, 12, 2, '#ffffff50');
+      rect(x - 6, y - 20, 12, 12, '#87593d');
+      rect(x - 5, y - 19, 10, 10, '#edc49c');
+      rect(x - 6, y - 22, 12, 5, '#70492f');
+      rect(x - 4, y - 16, 2, 2, '#473d35'); rect(x + 2, y - 16, 2, 2, '#473d35');
+      text(state.name || 'Gardener', x, y - 27, 7, '#fffbe8', 'center');
+      return;
+    }
+    // Feet and alternating legs create a readable two-frame walk cycle.
+    rect(x - 5 + legSwing, y + 1, 4, 7, '#584b43');
+    rect(x + 2 - legSwing, y + 1, 4, 7, '#584b43');
+    rect(x - 6 + legSwing, y + 6, 5, 3, '#423b34');
+    rect(x + 1 - legSwing, y + 6, 5, 3, '#423b34');
+    // Shirt silhouette, sleeves and light/shadow pixels.
+    rect(x - 8, y - 9, 16, 13, '#5b5949');
+    rect(x - 7, y - 8, 14, 11, shirt);
+    rect(x - 9, y - 5 + legSwing, 3, 7, shirt);
+    rect(x + 6, y - 5 - legSwing, 3, 7, shirt);
+    rect(x - 5, y - 7, 10, 2, '#ffffff55');
+    rect(x - 4, y + 1, 8, 2, '#00000018');
+    // Neck, face, fringe and ears.
+    rect(x - 2, y - 11, 5, 4, '#c89370');
+    rect(x - 7, y - 21, 14, 13, '#704a34');
+    rect(x - 6, y - 20, 12, 11, '#edc49c');
+    rect(x - 7, y - 22, 14, 6, '#65422e');
+    rect(x - 6, y - 24, 10, 4, '#81553a');
+    rect(x - 8, y - 17, 2, 4, '#d9a985');
+    rect(x + 6, y - 17, 2, 4, '#d9a985');
+    const eyeX = p.facing < 0 ? -4 : p.facing > 0 ? 2 : -4;
+    rect(x + eyeX, y - 16, 2, 2, '#473d35');
+    rect(x + (eyeX === -4 ? 3 : -4), y - 16, 2, 2, '#473d35');
+    rect(x - 1, y - 11, 3, 1, '#bd7b68');
+    if (isPlayer) {
+      rect(x - 8, y - 27, 16, 3, '#315e42');
+      rect(x - 4, y - 29, 8, 3, '#ddec9f');
+      text(state.name || 'Gardener', x, y - 33, 7, '#fffbe8', 'center');
+      if (state.wave > 0) {
+        rect(x + 7, y - 14, 4, 6, '#edc49c');
+        rect(x + 9, y - 19, 3, 6, '#edc49c');
+        rect(x + 7, y - 21, 3, 3, '#edc49c');
+      }
+    } else {
+      text(p.name, x, y - 29, 7, '#fffbe8', 'center');
+      rect(x - 13, y - 26, 26, 2, '#355f41');
+    }
+  }
+
+  function interact() {
+    if (state.vehicle) {
+      const v = state.vehicle;
+      const angle = v.heading || 0;
+      state.vehicle = null;
+      state.driveSpeed = 0;
+      state.x = v.x - Math.cos(angle) * 31;
+      state.y = v.y - Math.sin(angle) * 31;
+      if (blocked(state.x, state.y, null)) {
+        state.x = v.x + Math.cos(angle + Math.PI / 2) * 31;
+        state.y = v.y + Math.sin(angle + Math.PI / 2) * 31;
+      }
+      state.vx = 0; state.vy = 0; state.target = null; state.path = [];
+      setMessage('🛻 You step out of ' + v.name + '. The engine settles with a little rattle.');
+      return;
+    }
+    if (state.sitting) {
+      state.sitting = false;
+      state.x = 324 + Math.cos(state.sitAngle) * 66;
+      state.y = 216 + Math.sin(state.sitAngle) * 51;
+      state.vx = 0; state.vy = 0;
+      setMessage('🌿 Back on your feet. The seat will be here when you need it.');
+      return;
+    }
+    const near = nearestVehicle();
+    if (near.v && near.d < 38) {
+      state.vehicle = near.v;
+      state.x = near.v.x; state.y = near.v.y;
+      state.driveSpeed = 0; state.target = null; state.path = [];
+      state.vx = 0; state.vy = 0;
+      setMessage('🚚 You climbed into ' + near.v.name + '. W / ↑ accelerates, S / ↓ reverses, and A-D / ← → steer.');
+      return;
+    }
+    const tableDistance = Math.hypot((state.x - 324) / 1.05, (state.y - 216) / 0.86);
+    if (tableDistance < 68) {
+      state.sitAngle = Math.atan2((state.y - 216) / 39, (state.x - 324) / 49);
+      state.x = 324 + Math.cos(state.sitAngle) * 49;
+      state.y = 216 + Math.sin(state.sitAngle) * 39;
+      state.sitting = true; state.target = null; state.path = [];
+      state.vx = 0; state.vy = 0;
+      setMessage('🥤 You found a spot on the circular bench. Anywhere around the table works.');
+      return;
+    }
+    if (distance(state, {x:505,y:102}) < 54) {
+      state.bell = 90;
+      setMessage('🚲 Tring tring! The bicycle bell rings into the quiet garden.');
+      return;
+    }
+    const f = flowers.reduce((a,b) => distance(state,a) < distance(state,b) ? a : b);
+    if (distance(state, f) < 43) {
+      setMessage('🌼 You stop by the flowers for a closer look.');
+      return;
+    }
+    if (state.x > 430 && state.y < 125) {
+      setMessage('🗑️ The dustbin is tucked neatly beside the house.');
+      return;
+    }
+    if (state.x < 216 && state.y < 265) {
+      setMessage('🌱 Fruit and vegetables are growing here. Mind the seedlings.');
+      return;
+    }
+    setMessage('🍃 Walk closer to the picnic bench, flowers, bicycle, or a mini truck, then press E.');
+  }
+
+  function canDriveTo(x, y, truck, heading) {
+    const a = heading || 0;
+    const probes = [[0,0],[15,0],[-15,0],[0,8],[0,-8],[12,7],[12,-7],[-12,7],[-12,-7]];
+    for (const p of probes) {
+      const px = x + p[0] * Math.cos(a) - p[1] * Math.sin(a);
+      const py = y + p[0] * Math.sin(a) + p[1] * Math.cos(a);
+      if (blocked(px, py, truck)) return false;
+      for (const s of sprites) if (Math.hypot(px - s.x, py - s.y) < 14) return false;
+    }
+    return true;
+  }
+
+  function tick() {
+    state.time++;
+    const up = state.keys.has('up'), down = state.keys.has('down');
+    const left = state.keys.has('left'), right = state.keys.has('right');
+    if (state.vehicle) {
+      const v = state.vehicle;
+      if (typeof v.heading !== 'number') v.heading = 0;
+      if (up) state.driveSpeed = Math.min(2.55, state.driveSpeed + 0.075);
+      else if (down) state.driveSpeed = Math.max(-0.95, state.driveSpeed - 0.085);
+      else state.driveSpeed *= 0.94;
+      if (Math.abs(state.driveSpeed) < 0.025) state.driveSpeed = 0;
+      const steer = (left ? -1 : 0) + (right ? 1 : 0);
+      if (steer) v.heading += steer * (0.022 + Math.min(0.035, Math.abs(state.driveSpeed) * 0.017)) * (state.driveSpeed < -0.1 ? -1 : 1);
+      if (Math.abs(state.driveSpeed) > 0.01) {
+        const nx = v.x + Math.cos(v.heading) * state.driveSpeed;
+        const ny = v.y + Math.sin(v.heading) * state.driveSpeed;
+        if (canDriveTo(nx, ny, v, v.heading)) {
+          v.x = nx; v.y = ny;
+        } else {
+          state.driveSpeed *= -0.12;
+          if (Math.abs(state.driveSpeed) < 0.1) state.driveSpeed = 0;
+        }
+      }
+      state.x = v.x; state.y = v.y;
+    } else if (!state.sitting) {
+      let dx = (right ? 1 : 0) - (left ? 1 : 0);
+      let dy = (down ? 1 : 0) - (up ? 1 : 0);
+      if (dx || dy) {
+        state.target = null; state.path = [];
+      } else if (state.target && state.path.length) {
+        const p = state.path[0];
+        const ddx = p.x - state.x, ddy = p.y - state.y;
+        const d = Math.hypot(ddx, ddy);
+        if (d < 4.2) {
+          state.path.shift();
+          if (!state.path.length) state.target = null;
+        } else {
+          dx = ddx / d; dy = ddy / d;
+        }
+      }
+      const length = Math.hypot(dx, dy);
+      if (length) { dx /= length; dy /= length; }
+      const accel = length ? 0.31 : 0.19;
+      state.vx += ((length ? dx * 1.58 : 0) - state.vx) * accel;
+      state.vy += ((length ? dy * 1.58 : 0) - state.vy) * accel;
+      if (!length) { state.vx *= 0.83; state.vy *= 0.83; }
+      if (Math.abs(state.vx) < 0.025) state.vx = 0;
+      if (Math.abs(state.vy) < 0.025) state.vy = 0;
+      const nx = state.x + state.vx, ny = state.y + state.vy;
+      let moved = false;
+      if (canWalk(nx, state.y, 'player')) { state.x = nx; moved = true; }
+      if (canWalk(state.x, ny, 'player')) { state.y = ny; moved = true; }
+      if (!moved && length) { state.vx *= 0.24; state.vy *= 0.24; }
+      if (Math.abs(state.vx) > 0.04) state.facing = state.vx < 0 ? -1 : 1;
+      if (moved && (Math.abs(state.vx) + Math.abs(state.vy) > 0.05)) state.lastMove = state.time;
+    }
+    sprites.forEach((s, i) => {
+      if (typeof s.walkPhase !== 'number') s.walkPhase = 0;
+      if (typeof s.facing !== 'number') s.facing = 1;
+      const angle = state.time * 0.009 + s.phase;
+      const baseX = [255, 376, 247][i], baseY = [155, 176, 282][i];
+      let dx = baseX + Math.sin(angle) * 18 - s.x;
+      let dy = baseY + Math.cos(angle * 1.15) * 11 - s.y;
+      for (const other of sprites) {
+        if (other === s) continue;
+        const ox = s.x - other.x, oy = s.y - other.y, od = Math.hypot(ox, oy);
+        if (od > 0 && od < 18) { dx += ox / od * (18 - od) * 0.8; dy += oy / od * (18 - od) * 0.8; }
+      }
+      if (!state.vehicle) {
+        const ox = s.x - state.x, oy = s.y - state.y, od = Math.hypot(ox, oy);
+        if (od > 0 && od < 21) { dx += ox / od * (21 - od) * 1.5; dy += oy / od * (21 - od) * 1.5; }
+      }
+      const d = Math.hypot(dx, dy);
+      s.moving = d > 2.5;
+      if (d > 2.5) {
+        dx /= d; dy /= d;
+        const nx = s.x + dx * 0.38, ny = s.y + dy * 0.38;
+        if (canWalk(nx, s.y, s)) s.x = nx;
+        else if (canWalk(s.x, ny, s)) s.y = ny;
+        else {
+          const sideX = s.x - dy * 0.22, sideY = s.y + dx * 0.22;
+          const otherX = s.x + dy * 0.22, otherY = s.y - dx * 0.22;
+          if (canWalk(sideX, sideY, s)) { s.x = sideX; s.y = sideY; }
+          else if (canWalk(otherX, otherY, s)) { s.x = otherX; s.y = otherY; }
+        }
+        s.walkPhase += 0.12;
+        if (Math.abs(dx) > 0.08) s.facing = dx < 0 ? -1 : 1;
+      }
+    });
+    if (state.wave > 0) state.wave--;
+    if (state.bell > 0) state.bell--;
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  function draw() {
+    drawWorldBase();
+    // Actors share one depth-sorted layer, so nearby sprites no longer all sit on top.
+    const actors = sprites.slice();
+    if (!state.vehicle) actors.push({ x: state.x, y: state.y, color: state.color, facing: state.facing, player: true });
+    actors.sort((a, b) => a.y - b.y);
+    actors.forEach((actor) => drawAvatar(actor.player ? {x:state.x,y:state.y,color:state.color,facing:state.facing} : actor, !!actor.player));
+    drawEffects();
+    $('coords').textContent = 'Garden coordinates: ' + Math.round(state.x) + ', ' + Math.round(state.y) + (state.vehicle ? ' · Driving ' + state.vehicle.name : state.sitting ? ' · Sitting by the table' : '');
+  }
+
+  // Replace straight-line mouse targets with routes around solid garden props.
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state.vehicle) return;
+    const r = canvas.getBoundingClientRect();
+    const x = (e.clientX - r.left) * W / r.width;
+    const y = (e.clientY - r.top) * H / r.height;
+    const clickedTruck = vehicles.find(v => Math.abs(x - v.x) < 25 && Math.abs(y - v.y) < 22);
+    if (clickedTruck) {
+      if (distance(state, clickedTruck) < 42) return;
+      setTarget(clickedTruck.x - 29, clickedTruck.y + 22);
+      return;
+    }
+    setTarget(x, y);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (keyMap[e.key]) { state.path = []; state.target = null; state.sitting = false; }
+  });
+
+  // initial paint, then start the tiny world simulation
+  draw();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
